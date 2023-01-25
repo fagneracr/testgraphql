@@ -10,9 +10,10 @@ import (
 )
 
 var ctx = context.TODO()
+
 var DB *mongo.Database
 
-func ConnectDataBase() (DB *mongo.Database) {
+func ConnectDataBase() {
 
 	clientOptions := options.Client().ApplyURI("mongodb://admin:admin123@localhost:27017/")
 	db, err := mongo.NewClient(clientOptions)
@@ -28,6 +29,9 @@ func ConnectDataBase() (DB *mongo.Database) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+}
+func GetSession() *mongo.Database {
 	return DB
 
 }

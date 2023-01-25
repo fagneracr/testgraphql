@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"apitest/pkg/models"
+	"apitest/pkg/token"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type LoginInput struct {
@@ -12,28 +14,29 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func Login(c *gin.Context) {
+func Login(DB *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input LoginInput
 
-	var input LoginInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		u := models.User{}
+
+		u.Username = input.Username
+		u.Password = input.Password
+
+		token, err := models.LoginCheck(u.Username, u.Password, DB)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "username or password is incorrect."})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"token": token})
 	}
-
-	u := models.User{}
-
-	u.Username = input.Username
-	u.Password = input.Password
-
-	token, err := models.LoginCheck(u.Username, u.Password)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username or password is incorrect."})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"token": token})
 
 }
 
@@ -42,27 +45,45 @@ type RegisterInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func Register(c *gin.Context) {
+/*Register - save username and passwd*/
+func Register(DB *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input RegisterInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-	var input RegisterInput
+		u := models.User{}
+		u.Username = input.Username
+		u.Password = input.Password
+		_, err := u.SaveUser(DB)
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "registration success"})
 	}
 
-	u := models.User{}
+}
 
-	u.Username = input.Username
-	u.Password = input.Password
+func CurrentUser(DB *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user_id, err := token.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-	_, err := u.SaveUser()
+		u, err := models.GetUserByID(user_id, DB)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "success", "data": u})
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "registration success"})
-
 }

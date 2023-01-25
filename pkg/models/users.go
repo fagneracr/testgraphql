@@ -2,12 +2,15 @@ package models
 
 import (
 	"apitest/pkg/token"
+	"context"
 	"html"
 	"strings"
 
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type User struct {
@@ -20,17 +23,16 @@ func VerifyPassword(password, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-func LoginCheck(username string, password string) (string, error) {
+func LoginCheck(username string, password string, DB *mongo.Database) (string, error) {
 
 	var err error
 
 	u := User{}
-
-	// err = DB.Model(User{}).Where("username = ?", username).Take(&u).Error
-
-	// if err != nil {
-	// 	return "", err
-	// }
+	result := DB.Collection("users").FindOne(context.TODO(), bson.M{"username": username}, nil)
+	err = result.Decode(&u)
+	if err != nil {
+		return "", err
+	}
 
 	err = VerifyPassword(password, u.Password)
 
@@ -48,7 +50,7 @@ func LoginCheck(username string, password string) (string, error) {
 
 }
 
-func (u *User) SaveUser() (*User, error) {
+func (u *User) SaveUser(DB *mongo.Database) (*User, error) {
 	// user := User{
 	// 	Username: u.Username, Password: u.Password,
 	// }
@@ -76,5 +78,18 @@ func (u *User) BeforeSave() error {
 	u.Username = html.EscapeString(strings.TrimSpace(u.Username))
 
 	return nil
+
+}
+
+func GetUserByID(uid primitive.ObjectID, DB *mongo.Database) (User, error) {
+
+	var u User
+	if err := DB.Collection("users").FindOne(context.TODO(), bson.M{"_id": uid}).Decode(&u); err != nil {
+		return u, errors.New("User not found")
+	}
+
+	//u.PrepareGive()
+
+	return u, nil
 
 }

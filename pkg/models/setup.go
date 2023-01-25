@@ -3,10 +3,8 @@ package models
 import (
 	"context"
 	"log"
-	"os"
 
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -14,11 +12,9 @@ import (
 var ctx = context.TODO()
 var DB *mongo.Database
 
-func ConnectDataBase() {
-	DbHost := os.Getenv("DB_HOST")
-	DbPort := os.Getenv("DB_PORT")
-	err := godotenv.Load(".env")
-	clientOptions := options.Client().ApplyURI("mongodb://" + DbHost + ":" + DbPort + "/")
+func ConnectDataBase() (DB *mongo.Database) {
+
+	clientOptions := options.Client().ApplyURI("mongodb://admin:admin123@localhost:27017/")
 	db, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -32,5 +28,6 @@ func ConnectDataBase() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	return DB
 
 }

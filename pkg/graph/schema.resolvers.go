@@ -6,13 +6,57 @@ package graph
 
 import (
 	"apitest/pkg/graph/model"
+	"apitest/pkg/models"
+	"apitest/pkg/token"
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // CreateLink is the resolver for the createLink field.
 func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
-	panic(fmt.Errorf("not implemented: CreateLink - createLink"))
+	c := ctx.Value("GinContextKey").(*gin.Context)
+	if c == nil {
+		err := fmt.Errorf("could not retrieve gin.Context")
+		return nil, err
+	}
+	user_id, err := token.ExtractTokenID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return nil, err
+	}
+	DB := models.GetSession()
+	u, err := models.GetUserByID(user_id, DB)
+
+	if err != nil {
+
+		return nil, err
+	}
+	toSave := make(map[string]interface{})
+	toSave["title"] = input.Title
+	toSave["address"] = input.Address
+	toSave["userid"] = u.ID.Hex()
+
+	db := models.GetSession()
+	result, err := db.Collection("link").InsertOne(context.Background(), toSave)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.Link{
+		ID:      result.InsertedID.(primitive.ObjectID).Hex(),
+		Title:   input.Title,
+		Address: input.Address,
+		User: &model.User{
+			ID:   u.ID.Hex(),
+			Name: u.Username,
+		}}, nil
+
 }
 
 // CreateUser is the resolver for the createUser field.
@@ -31,9 +75,38 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 }
 
 // Links is the resolver for the links field.
-func (r *queryResolver) Links(ctx context.Context) ([]*model.Link, error) {
+func (r *queryResolver) Links(ctx context.Context, id string) ([]*model.Link, error) {
 
-	panic(fmt.Errorf("not implemented: Links - links"))
+	DB := models.GetSession()
+
+	db := models.GetSession()
+	cursor, err := db.Collection("link").Find(context.Background(), bson.M{}, nil)
+	if err != nil {
+		return nil, errors.New("Error find in db: " + err.Error())
+	}
+	var links []*model.Link
+	for cursor.Next(context.Background()) {
+		var temp map[string]interface{}
+		err := cursor.Decode(&temp)
+		if err != nil {
+			return nil, errors.New("Error find in db: " + err.Error())
+		}
+		userid, err := primitive.ObjectIDFromHex(temp["userid"].(string))
+		if err != nil {
+			return nil, err
+		}
+		u, err := models.GetUserByID(userid, DB)
+		links = append(links, &model.Link{
+			ID:      temp["_id"].(primitive.ObjectID).Hex(),
+			Title:   temp["title"].(string),
+			Address: temp["address"].(string),
+			User:    &model.User{Name: u.Username, ID: u.ID.Hex()},
+		})
+
+	}
+
+	return links, nil
+	//panic(fmt.Errorf("not implemented: Links - links"))
 }
 
 // Mutation returns MutationResolver implementation.

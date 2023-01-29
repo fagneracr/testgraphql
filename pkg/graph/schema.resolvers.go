@@ -14,8 +14,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"gopkg.in/mgo.v2/bson"
 )
 
 // CreateLink is the resolver for the createLink field.
@@ -59,28 +59,37 @@ func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) 
 
 }
 
-// CreateUser is the resolver for the createUser field.
-func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (string, error) {
-	panic(fmt.Errorf("not implemented: CreateUser - createUser"))
-}
-
-// Login is the resolver for the login field.
-func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string, error) {
-	panic(fmt.Errorf("not implemented: Login - login"))
-}
-
-// RefreshToken is the resolver for the refreshToken field.
-func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error) {
-	panic(fmt.Errorf("not implemented: RefreshToken - refreshToken"))
-}
-
 // Links is the resolver for the links field.
-func (r *queryResolver) Links(ctx context.Context, id string) ([]*model.Link, error) {
-
+func (r *queryResolver) Links(ctx context.Context, input *model.Filters) ([]*model.Link, error) {
 	DB := models.GetSession()
+	filterTitle := ""
+	//var query bson.D
+	var query1 bson.A
+	if input != nil {
+		if input.Title != nil {
+			filterTitle = *input.Title
+
+			query1 = bson.A{
+				bson.D{
+					{"$match",
+						bson.D{
+							{"$and",
+								bson.A{
+									bson.D{{"title", bson.D{{"$eq", filterTitle}}}},
+								},
+							},
+						},
+					},
+				},
+			}
+		}
+
+	}
+
+	matchstage := query1
 
 	db := models.GetSession()
-	cursor, err := db.Collection("link").Find(context.Background(), bson.M{}, nil)
+	cursor, err := db.Collection("link").Aggregate(context.Background(), matchstage, nil)
 	if err != nil {
 		return nil, errors.New("Error find in db: " + err.Error())
 	}

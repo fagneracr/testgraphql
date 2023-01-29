@@ -1,7 +1,3 @@
-# GraphQL schema example
-#
-# https://gqlgen.com/getting-started/
-
 type Link {
   id: ID!
   title: String!
@@ -14,8 +10,9 @@ type User {
   name: String!
 }
 
+
 type Query {
-  links(id: ID):[Link!]!
+  links(input: Filters):[Link!]!
 }
 
 input NewLink {
@@ -23,9 +20,13 @@ input NewLink {
   address: String!
 }
 
+input Filters {
+  title: String
+  user: String
+}
 
 
 type Mutation {
   createLink(input: NewLink!): Link!
-
+ 
 }

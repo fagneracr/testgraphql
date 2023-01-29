@@ -2,6 +2,11 @@
 
 package model
 
+type Filters struct {
+	Title *string `json:"title"`
+	User  *string `json:"user"`
+}
+
 type Link struct {
 	ID      string `json:"id"`
 	Title   string `json:"title"`

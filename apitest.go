@@ -33,10 +33,8 @@ func graphqlHandler() gin.HandlerFunc {
 	// NewExecutableSchema and Config are in the generated.go file
 	// Resolver is in the resolver.go file
 	//resolveroot := new(graph.ResolverRoot)
-	var root graph.ResolverRoot
-	h := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
-		Resolvers: root,
-	}))
+
+	h := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
 
 	return func(c *gin.Context) {
 		h.ServeHTTP(c.Writer, c.Request)
